@@ -154,6 +154,39 @@ function createApp() {
       const probe = await probeAudio(downloaded.filePath);
       const stream = probe && probe.streams && probe.streams[0] ? probe.streams[0] : {};
       const format = probe && probe.format ? probe.format : {};
+      let driveInfo = false;
+      if (body.drive === true) {
+        const {
+          credentialsConfigured,
+          playlistFolderId,
+          uploadMp3,
+          driveFileName,
+        } = require('./lib/drive');
+        if (!credentialsConfigured()) {
+          throw Object.assign(new Error('Google Drive credentials are not configured'), { status: 503 });
+        }
+        const folderName = typeof body.playlistName === 'string' && body.playlistName.trim()
+          ? body.playlistName.trim()
+          : '_smoke-tests';
+        const folder = await playlistFolderId(folderName);
+        const filename = driveFileName({
+          title: downloaded.title,
+          artist: downloaded.artist,
+          id: downloaded.id,
+        });
+        const uploaded = await uploadMp3({
+          folderId: folder.folderId,
+          name: filename,
+          filePath: downloaded.filePath,
+        });
+        driveInfo = {
+          fileId: uploaded.id,
+          folderId: folder.folderId,
+          filename,
+          webViewLink: uploaded.webViewLink || '',
+        };
+        removeWorkDir(path.join(root, downloaded.id));
+      }
       res.json({
         ok: true,
         id: downloaded.id,
@@ -166,7 +199,7 @@ function createApp() {
         channels: stream.channels || null,
         duration: format.duration ? Number(format.duration) : null,
         format: format.format_name || null,
-        drive: false,
+        drive: driveInfo,
       });
     } catch (err) {
       if (videoId) removeWorkDir(path.join(workRoot(), videoId));
