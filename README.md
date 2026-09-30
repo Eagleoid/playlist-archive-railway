@@ -30,14 +30,41 @@ A second check while one is running returns `409`.
 
 ## Drive
 
-Service accounts have no My Drive quota. Create a folder in your Drive, share it with the service account email as **Editor**, and set `DRIVE_ROOT_FOLDER_ID` to that folder. The app creates `YouTube Playlist Archives / {playlist name}` under it (Shared Drives supported).
+For personal My Drive uploads, use Google user OAuth. Service accounts have no My Drive quota and cannot upload to personal My Drive folders; they can still use a folder shared with the service account email as **Editor** or a Shared Drive. The app creates `YouTube Playlist Archives / {playlist name}` under `DRIVE_ROOT_FOLDER_ID` (which defaults to `root`).
 
 Credentials, first match wins:
 
-1. `GOOGLE_SERVICE_ACCOUNT_JSON` — the full JSON key as a single-line string
-2. `GOOGLE_APPLICATION_CREDENTIALS` — path to the key file
+1. `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, and `GOOGLE_OAUTH_REFRESH_TOKEN` — all three must be set for user OAuth
+2. `GOOGLE_SERVICE_ACCOUNT_JSON` — the full JSON key as a single-line string
+3. `GOOGLE_APPLICATION_CREDENTIALS` — path to the key file
 
-Enable the Google Drive API on the GCP project that owns the key.
+Enable the Google Drive API on the GCP project for the OAuth client or service-account key.
+
+### Set up Google user OAuth
+
+In the Google Cloud Console OAuth client, add this exact redirect URI:
+
+`http://127.0.0.1:8765/oauth2callback`
+
+The required scope is:
+
+`https://www.googleapis.com/auth/drive`
+
+Run the setup helper locally with either environment variables:
+
+```bash
+GOOGLE_OAUTH_CLIENT_ID=your-client-id \
+GOOGLE_OAUTH_CLIENT_SECRET=your-client-secret \
+npm run oauth-setup
+```
+
+Or pass the values as arguments:
+
+```bash
+npm run oauth-setup -- --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
+```
+
+It opens the consent URL, listens on `127.0.0.1:8765`, and saves the refresh token to `/workspace/secrets/google-oauth-refresh.json` with mode `600`. Copy the three values from that file to Railway; do not commit the file.
 
 ## yt-dlp
 

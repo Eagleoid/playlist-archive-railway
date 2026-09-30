@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server.js",
     "cron": "node server.js --cron",
+    "oauth-setup": "node scripts/oauth-setup.js",
     "test": "node --test"
   },
   "dependencies": {
