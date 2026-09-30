@@ -126,6 +126,50 @@ function createApp() {
     }
   });
 
+  app.post('/test-drive', requireToken, async (req, res) => {
+    const body = req.body || {};
+    try {
+      const fs = require('fs');
+      const os = require('os');
+      const {
+        credentialsConfigured,
+        playlistFolderId,
+        uploadMp3,
+      } = require('./lib/drive');
+      if (!credentialsConfigured()) {
+        res.status(503).json({ ok: false, error: 'Google Drive credentials are not configured' });
+        return;
+      }
+      const folderName = typeof body.playlistName === 'string' && body.playlistName.trim()
+        ? body.playlistName.trim()
+        : '_smoke-tests';
+      const folder = await playlistFolderId(folderName);
+      const tmp = path.join(os.tmpdir(), `drive-smoke-${Date.now()}.mp3`);
+      // Minimal valid-enough MP3 frame payload for upload smoke (not playable required).
+      const bytes = Buffer.from([
+        0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0xff, 0xfb, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      ]);
+      fs.writeFileSync(tmp, bytes);
+      const name = typeof body.name === 'string' && body.name.trim()
+        ? body.name.trim()
+        : `_oauth-smoke-${Date.now()}.mp3`;
+      const uploaded = await uploadMp3({ folderId: folder.folderId, name, filePath: tmp });
+      try { fs.unlinkSync(tmp); } catch {}
+      res.json({
+        ok: true,
+        drive: {
+          fileId: uploaded.id,
+          folderId: folder.folderId,
+          filename: name,
+          webViewLink: uploaded.webViewLink || '',
+        },
+      });
+    } catch (err) {
+      res.status(err.status || 500).json({ ok: false, error: err.message });
+    }
+  });
+
   app.post('/test-download', requireToken, async (req, res) => {
     const body = req.body || {};
     const url = typeof body.url === 'string' ? body.url.trim() : '';
