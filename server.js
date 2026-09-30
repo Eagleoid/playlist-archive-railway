@@ -126,6 +126,32 @@ function createApp() {
     }
   });
 
+  app.post('/cookies', requireToken, async (req, res) => {
+    try {
+      const fs = require('fs');
+      ensureDataDir();
+      const target = path.join(require('./lib/config').dataDir(), 'youtube-cookies.txt');
+      const body = req.body || {};
+      let content = '';
+      if (typeof body.netscape === 'string' && body.netscape.trim()) {
+        content = body.netscape;
+      } else if (typeof req.body === 'string') {
+        content = req.body;
+      } else {
+        res.status(400).json({ ok: false, error: 'Send JSON { netscape: "...cookies file text..." }' });
+        return;
+      }
+      if (!content.includes('youtube.com') && !content.includes('# Netscape')) {
+        res.status(400).json({ ok: false, error: 'Cookie file does not look like a Netscape YouTube export' });
+        return;
+      }
+      fs.writeFileSync(target, content.endsWith('\n') ? content : `${content}\n`, { mode: 0o600 });
+      res.json({ ok: true, path: target, bytes: Buffer.byteLength(content) });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
   app.post('/test-drive', requireToken, async (req, res) => {
     const body = req.body || {};
     try {
