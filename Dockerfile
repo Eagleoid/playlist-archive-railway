@@ -46,7 +46,6 @@ COPY server.js ./
 COPY lib ./lib
 
 RUN mkdir -p /data
-VOLUME /data
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
