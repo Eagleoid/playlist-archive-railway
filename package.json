@@ -1,0 +1,20 @@
+{
+  "name": "playlist-archive-railway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Watch YouTube and YouTube Music playlists, archive new tracks as MP3s, and upload them to Google Drive.",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "cron": "node server.js --cron",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "google-auth-library": "^9.15.1",
+    "node-id3": "^0.2.6"
+  }
+}

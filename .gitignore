@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.*
+!.env.example
+data/
+*.mp3
+*.info.json
+credentials.json
+*-service-account*.json
+check.lock
