@@ -23,6 +23,8 @@ Use it only for playlists you have the right to archive.
 | GET | `/health` | | Liveness, Deno presence, last check counts |
 | GET | `/watchlist` | | Current watchlist |
 | POST | `/watchlist` | `{ "url", "name?", "archive?" }` | Add a playlist. `archive: true` runs the check for that playlist immediately |
+| GET | `/archived` | | Archived video map (`?idsOnly=1` for ids + count) |
+| POST | `/archived` | `{ "ids" }` / `{ "videos" }` optional `replace` | Merge video ids into `/data/archived.json` |
 | POST | `/check` | | Run the daily check now |
 | POST | `/test-download` | `{ "url" }` | Download one video to `/tmp` and report size and codec. Does not upload to Drive or mark it archived. A playlist URL downloads only the first video |
 

@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { port, isCronMode, dataDir, apiToken } = require('./lib/config');
-const { ensureDataDir, loadWatchlist, upsertPlaylist, playlistIdFromUrl } = require('./lib/store');
+const { ensureDataDir, loadWatchlist, upsertPlaylist, playlistIdFromUrl, loadArchived, saveArchived } = require('./lib/store');
 const { runCheck } = require('./lib/archive');
 const { downloadVideo, probeAudio, findDeno, workRoot, removeWorkDir } = require('./lib/ytdlp');
 const { credentialsConfigured } = require('./lib/drive');
@@ -66,7 +66,7 @@ function readLastCheck() {
 function createApp() {
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '5mb' }));
 
   app.get('/health', (_req, res) => {
     res.json({
@@ -123,6 +123,91 @@ function createApp() {
       res.status(summary.ok ? 200 : 500).json(summary);
     } catch (err) {
       res.status(err.status || 500).json({ ok: false, error: err.message });
+    }
+  });
+
+
+  app.get('/archived', requireToken, (req, res) => {
+    try {
+      const data = loadArchived();
+      const videos = data.videos || {};
+      const count = Object.keys(videos).length;
+      if (req.query.idsOnly === '1' || req.query.idsOnly === 'true') {
+        res.json({ ok: true, count, ids: Object.keys(videos) });
+        return;
+      }
+      res.json({ ok: true, count, videos });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  app.post('/archived', requireToken, (req, res) => {
+    try {
+      const body = req.body || {};
+      const replace = body.replace === true;
+      const existing = replace ? { videos: {} } : loadArchived();
+      if (!existing.videos || typeof existing.videos !== 'object') {
+        existing.videos = {};
+      }
+      const now = new Date().toISOString();
+      let added = 0;
+      let updated = 0;
+
+      const upsert = (id, record) => {
+        if (!id || typeof id !== 'string' || !/^[\w-]{6,}$/.test(id)) {
+          return;
+        }
+        const prev = existing.videos[id];
+        const next = {
+          id,
+          archivedAt: now,
+          source: 'import',
+          ...(record && typeof record === 'object' ? record : {}),
+        };
+        next.id = id;
+        if (!next.archivedAt) next.archivedAt = now;
+        if (!next.source) next.source = 'import';
+        existing.videos[id] = prev ? { ...prev, ...next, id } : next;
+        if (prev) updated += 1;
+        else added += 1;
+      };
+
+      if (body.videos && typeof body.videos === 'object' && !Array.isArray(body.videos)) {
+        for (const [id, record] of Object.entries(body.videos)) {
+          upsert(id, record);
+        }
+      }
+      if (Array.isArray(body.videos)) {
+        for (const record of body.videos) {
+          if (!record || typeof record !== 'object') continue;
+          upsert(record.id, record);
+        }
+      }
+      if (Array.isArray(body.ids)) {
+        for (const id of body.ids) {
+          upsert(id, null);
+        }
+      }
+
+      if (!added && !updated && !replace) {
+        res.status(400).json({
+          ok: false,
+          error: 'Send JSON { ids: ["..."] } and/or { videos: { id: {...} } } or { videos: [{ id, ...}] }. Optional replace:true.',
+        });
+        return;
+      }
+
+      saveArchived(existing);
+      res.json({
+        ok: true,
+        added,
+        updated,
+        replace,
+        count: Object.keys(existing.videos).length,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
     }
   });
 
